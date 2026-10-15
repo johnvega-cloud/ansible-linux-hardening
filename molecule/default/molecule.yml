@@ -43,6 +43,13 @@ provisioner:
   # extra var. Both containers converge in one batch.
   options:
     extra-vars: hardening_serial=100%
+  inventory:
+    group_vars:
+      all:
+        # docker exec already runs as root, so sudo adds nothing here, and PAM
+        # inside CI containers can reject it ("account management error").
+        # Variables beat the play's `become: true` keyword; real hosts keep sudo.
+        ansible_become: false
 
 verifier:
   name: ansible
