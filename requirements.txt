@@ -1,0 +1,8 @@
+# Controller-side tooling (pinned for reproducible CI). Install with:
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+ansible-core==2.19.14
+ansible-lint==26.10.1
+yamllint==1.38.0
+molecule==26.10.0
+molecule-plugins[docker]==26.10.12
+boto3==1.43.114

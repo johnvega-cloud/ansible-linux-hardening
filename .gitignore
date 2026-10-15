@@ -1,0 +1,20 @@
+# --- Python / tooling ---
+.venv/
+__pycache__/
+*.pyc
+.cache/
+.ansible/
+
+# --- Ansible ---
+*.retry
+# Local inventories and vars with real hosts or secrets. Examples are committed.
+inventories/*.local.yml
+inventories/group_vars/*.local.yml
+# Vault password files: NEVER commit
+.vault_pass*
+vault-password*
+
+# --- OS / editors ---
+.DS_Store
+.idea/
+.vscode/
