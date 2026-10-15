@@ -11,10 +11,12 @@
   ansible.builtin.dnf:
     name: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_facts['distribution_major_version'] }}.noarch.rpm"
     state: present
+  register: fail2ban_epel_rhel
   when: ansible_facts['distribution'] == 'RedHat'
 
 - name: Fail2ban | Install EPEL release package (Rocky / AlmaLinux)
   ansible.builtin.dnf:
     name: epel-release
     state: present
+  register: fail2ban_epel_el
   when: ansible_facts['distribution'] != 'RedHat'

@@ -10,8 +10,11 @@
     quiet: true
   tags: [always]
 
+# Runs in --check too: refreshing package lists changes no configuration, and
+# without it an audit cannot tell which packages are missing.
 - name: Debian | Refresh apt cache
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: "{{ common_apt_cache_valid_time }}"
+  check_mode: false
   when: ansible_facts['os_family'] == 'Debian'

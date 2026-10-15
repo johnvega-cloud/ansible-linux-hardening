@@ -1,0 +1,36 @@
+---
+- name: Updates | Configure dnf-automatic
+  community.general.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { section: commands, option: upgrade_type, value: "{{ auto_updates_type }}" }
+    - { section: commands, option: download_updates, value: "yes" }
+    - { section: commands, option: apply_updates, value: "yes" }
+    - { section: emitters, option: emit_via, value: stdio }
+  loop_control:
+    label: "{{ item.section }}.{{ item.option }}"
+
+# The "reboot" option only exists in the dnf-automatic shipped with EL9+.
+- name: Updates | Configure automatic reboot (EL9+)
+  community.general.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: commands
+    option: reboot
+    value: "{{ 'when-needed' if auto_updates_reboot else 'never' }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution_major_version'] | int >= 9
+
+# dnf-automatic.timer applies or only downloads according to automatic.conf.
+- name: Updates | Ensure dnf-automatic timer is enabled
+  ansible.builtin.systemd_service:
+    name: dnf-automatic.timer
+    state: started
+    enabled: true

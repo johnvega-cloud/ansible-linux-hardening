@@ -3,26 +3,9 @@
   ansible.builtin.apt:
     name: unattended-upgrades
     state: present
+  register: auto_updates_install
 
-- name: Updates | Enable periodic update and upgrade runs
-  ansible.builtin.template:
-    src: 20auto-upgrades.j2
-    dest: /etc/apt/apt.conf.d/20auto-upgrades
-    owner: root
-    group: root
-    mode: "0644"
-
-- name: Updates | Configure unattended-upgrades policy
-  ansible.builtin.template:
-    src: 52unattended-upgrades-hardening.j2
-    dest: /etc/apt/apt.conf.d/52unattended-upgrades-hardening
-    owner: root
-    group: root
-    mode: "0644"
-
-- name: Updates | Ensure apt timers are enabled
-  ansible.builtin.systemd_service:
-    name: "{{ item }}"
-    state: started
-    enabled: true
-  loop: [apt-daily.timer, apt-daily-upgrade.timer]
+# In --check (audit) mode, skip configuration of a package that would be installed first.
+- name: Updates | Configure unattended-upgrades
+  ansible.builtin.include_tasks: Debian_configure.yml
+  when: not (ansible_check_mode and auto_updates_install is changed)

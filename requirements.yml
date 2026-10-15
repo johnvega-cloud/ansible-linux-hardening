@@ -1,8 +1,6 @@
 ---
 # Ansible collections. Install with: ansible-galaxy collection install -r requirements.yml
 collections:
-  - name: ansible.posix
-    version: ">=1.6.0"
   - name: community.general
     version: ">=10.0.0"
   - name: amazon.aws          # EC2 dynamic inventory
