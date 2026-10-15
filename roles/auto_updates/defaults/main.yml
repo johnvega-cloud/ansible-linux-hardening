@@ -5,7 +5,7 @@ auto_updates_type: security
 
 # Reboot automatically when an update requires it (kernel, glibc...).
 # Off by default: in a fleet, reboots should be coordinated (ASG instance refresh,
-# patch windows). Ubuntu: always available. RHEL: needs dnf-automatic from EL9+.
+# patch windows). Ubuntu: unattended-upgrades; RHEL: dnf-automatic "reboot".
 auto_updates_reboot: false
 auto_updates_reboot_time: "03:00"   # Ubuntu only
 

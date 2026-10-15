@@ -1,0 +1,48 @@
+---
+# Checks that the hardened config will still accept the user Ansible logs in as.
+# Runs before anything is changed. Tested in molecule/default/verify.yml.
+- name: SSH | Refuse to block root while connecting as root
+  ansible.builtin.assert:
+    that: sshd_login_user != 'root' or sshd_permit_root_login != 'no'
+    fail_msg: >-
+      Ansible connects as root and this baseline sets PermitRootLogin no.
+      Connect as a sudo user (ansible_user) first.
+    quiet: true
+
+- name: SSH | Look up the connecting user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ sshd_login_user }}"
+
+- name: SSH | Check the connecting user's authorized_keys
+  ansible.builtin.stat:
+    path: "{{ getent_passwd[sshd_login_user][4] }}/.ssh/authorized_keys"
+  register: sshd_authorized_keys
+  when: not (sshd_password_authentication | bool)
+
+- name: SSH | Refuse to disable password login without an authorized key
+  ansible.builtin.assert:
+    that:
+      - sshd_authorized_keys.stat.exists
+      - sshd_authorized_keys.stat.size > 0
+    fail_msg: >-
+      The connecting user has no authorized_keys. Disabling password login would
+      lock you out. Add a key first, or set sshd_lockout_guard=false if access is via SSM.
+    quiet: true
+  when: not (sshd_password_authentication | bool)
+
+- name: SSH | Read the connecting user's groups
+  ansible.builtin.command: "id -Gn {{ sshd_login_user }}"
+  register: sshd_login_groups
+  changed_when: false
+  check_mode: false   # read-only; needed for the audit mode too
+  when: sshd_allow_groups | length > 0
+
+- name: SSH | Refuse an AllowGroups list that excludes the connecting user
+  ansible.builtin.assert:
+    that: sshd_login_groups.stdout.split() | intersect(sshd_allow_groups) | length > 0
+    fail_msg: >-
+      {{ sshd_login_user }} (groups: {{ sshd_login_groups.stdout }}) is in none of
+      sshd_allow_groups {{ sshd_allow_groups }}: the new config would lock it out.
+    quiet: true
+  when: sshd_allow_groups | length > 0

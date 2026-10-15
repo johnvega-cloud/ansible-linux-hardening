@@ -6,7 +6,7 @@ PermitRootLogin {{ sshd_permit_root_login }}
 PubkeyAuthentication {{ 'yes' if sshd_pubkey_authentication else 'no' }}
 PasswordAuthentication {{ 'yes' if sshd_password_authentication else 'no' }}
 PermitEmptyPasswords no
-# ChallengeResponseAuthentication is accepted by every supported OpenSSH (8.0+);
+# ChallengeResponseAuthentication is accepted by every supported OpenSSH (8.7+);
 # newer versions treat it as an alias of KbdInteractiveAuthentication.
 ChallengeResponseAuthentication no
 HostbasedAuthentication no

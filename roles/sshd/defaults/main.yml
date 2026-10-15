@@ -21,7 +21,7 @@ sshd_allow_agent_forwarding: false
 sshd_log_level: VERBOSE   # logs key fingerprints used to log in
 
 # --- Cryptography: only AEAD/CTR ciphers, ETM/SHA-2 MACs, curve25519/DH-16+ KEX ---
-# Every algorithm below exists in OpenSSH 8.0 (RHEL 8), the oldest supported version.
+# Every algorithm below exists in OpenSSH 8.7 (RHEL 9), the oldest supported version.
 sshd_ciphers:
   - chacha20-poly1305@openssh.com
   - aes256-gcm@openssh.com
@@ -42,15 +42,18 @@ sshd_kex_algorithms:
   - diffie-hellman-group18-sha512
   - diffie-hellman-group-exchange-sha256
 
-# RHEL 8 passes the system crypto policy to sshd as command-line options, which
-# override sshd_config. Clearing it lets the lists above take effect.
-# Set to false to keep RHEL's crypto-policies in charge (e.g. FIPS hosts).
-sshd_override_rhel8_crypto_policy: true
-
 # --- Banner ---
 sshd_banner_text: |
   Authorized access only. All activity is logged and monitored.
 
+# systemd unit that starts sshd. Defaults per OS (vars/*.yml); override it on
+# Ubuntu 24.04 hosts where ssh.socket was replaced by ssh.service.
+sshd_activation_unit: "{{ sshd_os_activation_unit }}"
+
 # --- Safety ---
-# Before disabling passwords, check that the connecting user has an authorized key.
+# Before changing anything, check that the user Ansible logs in as can still log
+# in afterwards: not root, has an authorized key, is in sshd_allow_groups.
 sshd_lockout_guard: true
+sshd_login_user: "{{ ansible_user | default(lookup('ansible.builtin.env', 'USER')) }}"
+# Connection types that log in through sshd (the guard is pointless for others).
+sshd_lockout_guard_connections: [ssh, smart, paramiko]

@@ -6,7 +6,7 @@
   args:
     creates: /etc/ssh/ssh_host_ed25519_key
 
-# RHEL 8's default sshd_config has no Include line; Ubuntu 22.04+ and RHEL 9 already do.
+# Ubuntu 22.04+ and RHEL 9 ship an Include line already; custom images may not.
 - name: SSH | Ensure drop-in directory exists
   ansible.builtin.file:
     path: "{{ sshd_dropin_dir }}"
@@ -53,24 +53,10 @@
     mode: "0755"
   when: ansible_facts['os_family'] == 'Debian'
 
-- name: SSH | Let sshd_config choose ciphers on RHEL 8 (clear CRYPTO_POLICY)
-  ansible.builtin.lineinfile:
-    path: /etc/sysconfig/sshd
-    regexp: '^#?\s*CRYPTO_POLICY='
-    line: "CRYPTO_POLICY="
-    create: true
-    owner: root
-    group: root
-    mode: "0640"
-  when:
-    - sshd_override_rhel8_crypto_policy | bool
-    - ansible_facts['os_family'] == 'RedHat'
-    - ansible_facts['distribution_major_version'] == '8'
-  notify: Restart sshd
-
 # Write the drop-in, then validate the FULL config (main file + every drop-in).
-# If validation fails, put the previous file back so a later reboot cannot
-# start sshd with a broken config.
+# If validation fails, undo only what this run changed, so a later reboot cannot
+# start sshd with a broken config. An unchanged drop-in is never removed: the
+# error is elsewhere, and deleting it would re-enable password logins.
 - name: SSH | Apply hardened drop-in (validated, rolled back on failure)
   block:
     - name: SSH | Template hardened drop-in
@@ -97,17 +83,24 @@
         owner: root
         group: root
         mode: "0600"
-      when: sshd_dropin.backup_file is defined
+      when:
+        - sshd_dropin is changed
+        - sshd_dropin.backup_file is defined
 
     - name: SSH | Remove new drop-in that had no previous version
       ansible.builtin.file:
         path: "{{ sshd_dropin_file }}"
         state: absent
-      when: sshd_dropin.backup_file is not defined
+      when:
+        - sshd_dropin is changed
+        - sshd_dropin.backup_file is not defined
 
     - name: SSH | Stop this host
       ansible.builtin.fail:
-        msg: "sshd -t rejected the hardened config; previous config restored, sshd not reloaded."
+        msg: >-
+          sshd -t rejected the configuration. {{ 'The previous drop-in was restored.'
+          if sshd_dropin is changed else 'The hardening drop-in was unchanged, so the
+          problem is in another sshd file.' }} sshd was not reloaded.
 
 - name: SSH | Ensure sshd is enabled and running
   ansible.builtin.systemd_service:

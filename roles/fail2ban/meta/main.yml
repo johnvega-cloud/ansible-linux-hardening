@@ -8,5 +8,5 @@ galaxy_info:
     - name: Ubuntu
       versions: [jammy, noble]
     - name: EL
-      versions: ["8", "9"]
+      versions: ["9"]
 dependencies: []

@@ -3,32 +3,12 @@
   ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
   tags: [always]
 
-# --- Safety first: never disable passwords for a user who has no key ---
+# --- Safety first: the new config must still let the connecting user in ---
 - name: SSH | Lockout guard
+  ansible.builtin.include_tasks: guard.yml
   when:
     - sshd_lockout_guard | bool
-    - not (sshd_password_authentication | bool)
-    - ansible_connection | default('ssh') in ['ssh', 'smart', 'paramiko']
-  block:
-    - name: SSH | Look up the connecting user's home directory
-      ansible.builtin.getent:
-        database: passwd
-        key: "{{ ansible_user | default(lookup('ansible.builtin.env', 'USER')) }}"
-
-    - name: SSH | Check the connecting user's authorized_keys
-      ansible.builtin.stat:
-        path: "{{ getent_passwd[ansible_user | default(lookup('ansible.builtin.env', 'USER'))][4] }}/.ssh/authorized_keys"
-      register: sshd_authorized_keys
-
-    - name: SSH | Refuse to disable password login without an authorized key
-      ansible.builtin.assert:
-        that:
-          - sshd_authorized_keys.stat.exists
-          - sshd_authorized_keys.stat.size > 0
-        fail_msg: >-
-          The connecting user has no authorized_keys. Disabling password login would
-          lock you out. Add a key first, or set sshd_lockout_guard=false if access is via SSM.
-        quiet: true
+    - ansible_connection | default('ssh') in sshd_lockout_guard_connections
 
 - name: SSH | Install OpenSSH server
   ansible.builtin.package:

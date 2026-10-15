@@ -1,11 +1,13 @@
 ---
 # Distributions this baseline is written and tested for. Anything else fails fast
 # in preflight instead of being half-hardened.
+# EL8 is not listed: ansible-core 2.17+ cannot run modules on its system
+# Python (3.6), and the dnf module needs that Python's bindings.
 common_supported_distributions:
   Ubuntu: ["22", "24"]
-  RedHat: ["8", "9"]
-  Rocky: ["8", "9"]
-  AlmaLinux: ["8", "9"]
+  RedHat: ["9"]
+  Rocky: ["9"]
+  AlmaLinux: ["9"]
 
 # apt cache is considered fresh for this many seconds (avoids an apt update per run)
 common_apt_cache_valid_time: 3600

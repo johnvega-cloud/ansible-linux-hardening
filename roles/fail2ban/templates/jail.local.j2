@@ -5,7 +5,7 @@
 # Read auth events from the journal: same on Ubuntu and RHEL, and works on
 # images without rsyslog (no /var/log/auth.log or /var/log/secure).
 backend = systemd
-# nftables is the packet filter on RHEL 8/9 and Ubuntu 22.04+ (iptables is a shim over it).
+# nftables is the packet filter on RHEL 9 and Ubuntu 22.04+ (iptables is a shim over it).
 banaction = nftables-multiport
 banaction_allports = nftables-allports
 ignoreip = 127.0.0.1/8 ::1{% for cidr in fail2ban_ignoreip_extra %} {{ cidr }}{% endfor %}

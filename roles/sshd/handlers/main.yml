@@ -6,9 +6,3 @@
 - name: Reload sshd
   ansible.builtin.command: "systemctl try-reload-or-restart {{ sshd_service_name }}.service"  # noqa: command-instead-of-module
   changed_when: true
-
-# Needed only when the service environment changes (RHEL 8 CRYPTO_POLICY).
-- name: Restart sshd
-  ansible.builtin.service:
-    name: "{{ sshd_service_name }}"
-    state: restarted
