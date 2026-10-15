@@ -1,0 +1,11 @@
+// {{ ansible_managed }}
+// Read after 50unattended-upgrades, so these values override the distro defaults.
+{% if auto_updates_type == 'default' %}
+Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}-updates";
+};
+{% endif %}
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "{{ 'true' if auto_updates_remove_unused else 'false' }}";
+Unattended-Upgrade::Remove-Unused-Dependencies "{{ 'true' if auto_updates_remove_unused else 'false' }}";
+Unattended-Upgrade::Automatic-Reboot "{{ 'true' if auto_updates_reboot else 'false' }}";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ auto_updates_reboot_time }}";

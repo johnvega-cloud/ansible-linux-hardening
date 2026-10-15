@@ -1,0 +1,13 @@
+---
+# What gets installed automatically: "security" (default, lowest risk) or "default" (all updates).
+# Ubuntu: security only comes from 50unattended-upgrades' Allowed-Origins; "default" adds -updates.
+auto_updates_type: security
+
+# Reboot automatically when an update requires it (kernel, glibc...).
+# Off by default: in a fleet, reboots should be coordinated (ASG instance refresh,
+# patch windows). Ubuntu: always available. RHEL: needs dnf-automatic from EL9+.
+auto_updates_reboot: false
+auto_updates_reboot_time: "03:00"   # Ubuntu only
+
+# Remove kernels and dependencies that are no longer needed (Ubuntu)
+auto_updates_remove_unused: true

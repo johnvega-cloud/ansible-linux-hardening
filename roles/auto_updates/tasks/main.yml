@@ -1,0 +1,10 @@
+---
+- name: Updates | Validate inputs
+  ansible.builtin.assert:
+    that:
+      - auto_updates_type in ['security', 'default']
+    fail_msg: "auto_updates_type must be 'security' or 'default', got '{{ auto_updates_type }}'"
+    quiet: true
+
+- name: Updates | Configure automatic updates for this OS family
+  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] }}.yml"
