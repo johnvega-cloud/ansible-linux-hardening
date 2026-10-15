@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" width="1400" height="900" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>ansible-linux-hardening: how the playbook reaches and hardens the fleet</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#232F3E"/>
+    </marker>
+    <style>
+      .t  { fill: #232F3E; }
+      .mu { fill: #545B64; }
+      .mono { font-family: 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13px; fill: #232F3E; }
+      .solid { stroke: #232F3E; stroke-width: 2.2; fill: none; }
+      .dash  { stroke: #232F3E; stroke-width: 2; fill: none; stroke-dasharray: 7 5; }
+      .step { fill: #232F3E; font-size: 13px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- White canvas so the diagram stays legible on GitHub dark mode -->
+  <rect width="1400" height="900" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="30" y="42" class="t" font-size="26" font-weight="700">ansible-linux-hardening: rolling CIS-subset baseline for an EC2 fleet</text>
+  <text x="30" y="68" class="mu" font-size="14">Hosts are discovered by tag, reached through a bastion, and hardened a batch at a time. Ubuntu and RHEL run the same roles with per-OS variables.</text>
+
+  <!-- ===== Controller ===== -->
+  <rect x="30" y="100" width="340" height="320" rx="8" fill="#F2F3F3" stroke="#545B64" stroke-width="2"/>
+  <text x="50" y="130" class="t" font-size="17" font-weight="700">Ansible controller</text>
+  <text x="50" y="150" class="mu" font-size="13">laptop or CI runner with AWS credentials</text>
+  <text x="50" y="185" class="mono">ansible-playbook playbooks/site.yml</text>
+  <text x="50" y="215" class="mono">inventory: aws_ec2.yml</text>
+  <text x="62" y="235" class="mono">tag Hardening=true, running</text>
+  <text x="62" y="255" class="mono">groups: os_*, env_*, region_*</text>
+  <text x="50" y="285" class="mono">serial: 25%</text>
+  <text x="50" y="305" class="mono">max_fail_percentage: 0</text>
+  <text x="50" y="340" class="t" font-size="14" font-weight="700">Modes</text>
+  <text x="50" y="362" class="mono">--check --diff  audit, no changes</text>
+  <text x="50" y="382" class="mono">--tags ssh      one control only</text>
+  <text x="50" y="402" class="mono">-e target_hosts=env_prod</text>
+
+  <!-- ===== Rolling batches ===== -->
+  <rect x="30" y="450" width="340" height="270" rx="8" fill="#FFFFFF" stroke="#545B64" stroke-width="2"/>
+  <text x="50" y="480" class="t" font-size="17" font-weight="700">Rolling rollout</text>
+  <rect x="50" y="500" width="300" height="34" rx="4" fill="#E6F4EA" stroke="#1D8102" stroke-width="1.5"/>
+  <text x="62" y="522" class="t" font-size="14">Batch 1 (25% of hosts): OK</text>
+  <rect x="50" y="544" width="300" height="34" rx="4" fill="#E6F4EA" stroke="#1D8102" stroke-width="1.5"/>
+  <text x="62" y="566" class="t" font-size="14">Batch 2: OK</text>
+  <rect x="50" y="588" width="300" height="34" rx="4" fill="#FDECEA" stroke="#D13212" stroke-width="1.5"/>
+  <text x="62" y="610" class="t" font-size="14">Batch 3: one host fails</text>
+  <rect x="50" y="632" width="300" height="34" rx="4" fill="#F2F3F3" stroke="#879196" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="62" y="654" class="mu" font-size="14">Batch 4: never started</text>
+  <text x="50" y="696" class="mu" font-size="13">A failure stops the play before the</text>
+  <text x="50" y="712" class="mu" font-size="13">next batch: the blast radius is one batch.</text>
+
+  <!-- ===== AWS Region ===== -->
+  <rect x="400" y="100" width="970" height="620" fill="none" stroke="#00A4A6" stroke-width="2" stroke-dasharray="9 6"/>
+  <text x="415" y="122" fill="#00A4A6" font-size="16" font-weight="700">AWS Region (inventory regions list)</text>
+
+  <!-- EC2 API -->
+  <rect x="430" y="140" width="300" height="62" rx="6" fill="#FFF4E5" stroke="#ED7100" stroke-width="2"/>
+  <text x="445" y="166" class="t" font-size="15" font-weight="700">EC2 API</text>
+  <text x="445" y="188" class="mono">DescribeInstances (read-only)</text>
+  <path d="M370,170 H428" class="dash" marker-end="url(#arrow)"/>
+  <text x="375" y="160" class="step">1</text>
+
+  <!-- VPC -->
+  <rect x="430" y="230" width="920" height="470" fill="none" stroke="#8C4FFF" stroke-width="2.5"/>
+  <rect x="430" y="230" width="34" height="34" fill="#8C4FFF"/>
+  <text x="447" y="252" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700">VPC</text>
+  <text x="474" y="254" fill="#8C4FFF" font-size="16" font-weight="700">VPC (e.g. from terraform-aws-vpc-multiaz)</text>
+
+  <!-- Public subnet + bastion -->
+  <rect x="455" y="280" width="200" height="395" fill="#F2F8F0" stroke="#7AA116" stroke-width="2"/>
+  <text x="470" y="303" fill="#3F6B0A" font-size="14" font-weight="700">Public subnet</text>
+  <rect x="475" y="330" width="160" height="80" rx="6" fill="#FFFFFF" stroke="#ED7100" stroke-width="2"/>
+  <text x="555" y="362" text-anchor="middle" class="t" font-size="15" font-weight="700">Bastion</text>
+  <text x="555" y="384" text-anchor="middle" class="mu" font-size="12">SSH jump host</text>
+  <text x="555" y="400" text-anchor="middle" class="mu" font-size="12">(or SSM instead)</text>
+  <path d="M370,370 H473" class="solid" marker-end="url(#arrow)"/>
+  <text x="375" y="360" class="step">2</text>
+  <text x="555" y="440" text-anchor="middle" class="mu" font-size="12">reached via SSH ProxyJump</text>
+
+  <!-- Private subnet -->
+  <rect x="680" y="280" width="645" height="395" fill="#EEF4FB" stroke="#147EBA" stroke-width="2"/>
+  <text x="695" y="303" fill="#0B5A8A" font-size="14" font-weight="700">Private subnets (all AZs)</text>
+
+  <!-- Host groups -->
+  <rect x="700" y="320" width="295" height="110" rx="6" fill="#FFFFFF" stroke="#ED7100" stroke-width="2"/>
+  <text x="715" y="346" class="t" font-size="15" font-weight="700">group os_ubuntu</text>
+  <text x="715" y="368" class="mono">Ubuntu 22.04 / 24.04</text>
+  <text x="715" y="388" class="mono">user: ubuntu</text>
+  <text x="715" y="408" class="mono">apt, ssh.service / ssh.socket</text>
+
+  <rect x="1010" y="320" width="295" height="110" rx="6" fill="#FFFFFF" stroke="#ED7100" stroke-width="2"/>
+  <text x="1025" y="346" class="t" font-size="15" font-weight="700">group os_rhel</text>
+  <text x="1025" y="368" class="mono">RHEL / Rocky / Alma 8-9</text>
+  <text x="1025" y="388" class="mono">user: ec2-user</text>
+  <text x="1025" y="408" class="mono">dnf + EPEL, sshd.service</text>
+
+  <path d="M635,370 H698" class="solid" marker-end="url(#arrow)"/>
+  <text x="650" y="360" class="step">3</text>
+  <path d="M995,375 H1008" class="solid"/>
+
+  <!-- Roles applied to every host -->
+  <text x="700" y="465" class="t" font-size="15" font-weight="700">Roles applied to every host, in order</text>
+
+  <rect x="700" y="480" width="140" height="175" rx="6" fill="#FFFFFF" stroke="#232F3E" stroke-width="1.8"/>
+  <text x="770" y="505" text-anchor="middle" class="t" font-size="14" font-weight="700">common</text>
+  <text x="712" y="530" class="mu" font-size="12">supported-OS</text>
+  <text x="712" y="546" class="mu" font-size="12">preflight assert</text>
+  <text x="712" y="570" class="mu" font-size="12">apt cache refresh</text>
+
+  <rect x="855" y="480" width="140" height="175" rx="6" fill="#FFFFFF" stroke="#232F3E" stroke-width="1.8"/>
+  <text x="925" y="505" text-anchor="middle" class="t" font-size="14" font-weight="700">sshd</text>
+  <text x="867" y="530" class="mu" font-size="12">lockout guard</text>
+  <text x="867" y="546" class="mu" font-size="12">00-hardening.conf</text>
+  <text x="867" y="562" class="mu" font-size="12">no root, keys only</text>
+  <text x="867" y="578" class="mu" font-size="12">modern ciphers</text>
+  <text x="867" y="602" class="mu" font-size="12">sshd -t full config</text>
+  <text x="867" y="618" class="mu" font-size="12">rollback on failure</text>
+  <text x="867" y="634" class="mu" font-size="12">reload, not restart</text>
+
+  <rect x="1010" y="480" width="140" height="175" rx="6" fill="#FFFFFF" stroke="#232F3E" stroke-width="1.8"/>
+  <text x="1080" y="505" text-anchor="middle" class="t" font-size="14" font-weight="700">fail2ban</text>
+  <text x="1022" y="530" class="mu" font-size="12">sshd jail</text>
+  <text x="1022" y="546" class="mu" font-size="12">journal backend</text>
+  <text x="1022" y="562" class="mu" font-size="12">nftables bans</text>
+  <text x="1022" y="578" class="mu" font-size="12">incremental bantime</text>
+  <text x="1022" y="602" class="mu" font-size="12">fail2ban-client</text>
+  <text x="1022" y="618" class="mu" font-size="12">--test first</text>
+
+  <rect x="1165" y="480" width="140" height="175" rx="6" fill="#FFFFFF" stroke="#232F3E" stroke-width="1.8"/>
+  <text x="1235" y="505" text-anchor="middle" class="t" font-size="14" font-weight="700">auto_updates</text>
+  <text x="1177" y="530" class="mu" font-size="12">Ubuntu:</text>
+  <text x="1177" y="546" class="mu" font-size="12">unattended-upgrades</text>
+  <text x="1177" y="570" class="mu" font-size="12">RHEL:</text>
+  <text x="1177" y="586" class="mu" font-size="12">dnf-automatic</text>
+  <text x="1177" y="610" class="mu" font-size="12">security only,</text>
+  <text x="1177" y="626" class="mu" font-size="12">no auto-reboot</text>
+
+  <path d="M840,567 H853" class="solid" marker-end="url(#arrow)"/>
+  <path d="M995,567 H1008" class="solid" marker-end="url(#arrow)"/>
+  <path d="M1150,567 H1163" class="solid" marker-end="url(#arrow)"/>
+
+  <!-- ===== Legend / test loop ===== -->
+  <rect x="30" y="750" width="1340" height="120" rx="8" fill="#F2F3F3" stroke="#545B64" stroke-width="1.5"/>
+  <text x="50" y="778" class="t" font-size="15" font-weight="700">Same playbook, tested without AWS</text>
+  <text x="50" y="802" class="mono">molecule test: Docker (Ubuntu 24.04 + Rocky 9 with systemd) -> converge -> idempotence (0 changes) -> verify (sshd -T, fail2ban, timers)</text>
+  <text x="50" y="826" class="mono">CI on every PR: yamllint -> ansible-lint (production profile) -> syntax check -> molecule test</text>
+  <path d="M1000,850 H1040" class="dash" marker-end="url(#arrow)"/>
+  <text x="1048" y="855" class="mu" font-size="13">API call (read-only)</text>
+  <path d="M1190,850 H1230" class="solid" marker-end="url(#arrow)"/>
+  <text x="1238" y="855" class="mu" font-size="13">SSH / order</text>
+</svg>
