@@ -1,0 +1,54 @@
+---
+# CI: lint, syntax check and Molecule tests on every push/PR.
+# Nothing here touches AWS: no credentials, no inventory, no real hosts.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PY_VERSION: "3.13"
+  ANSIBLE_FORCE_COLOR: "1"
+  PY_COLORS: "1"
+
+jobs:
+  lint:
+    name: yamllint + ansible-lint + syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PY_VERSION }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: ansible-galaxy collection install -r requirements.yml
+      - run: yamllint .
+      - run: ansible-lint
+      - name: syntax check
+        run: ansible-playbook playbooks/site.yml -i inventories/static.example.yml --syntax-check
+
+  molecule:
+    name: molecule (Ubuntu 24.04 + Rocky 9)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PY_VERSION }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: ansible-galaxy collection install -r requirements.yml
+      # converge -> idempotence (second run must change nothing) -> verify
+      - run: molecule test

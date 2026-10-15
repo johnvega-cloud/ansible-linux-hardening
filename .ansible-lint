@@ -1,0 +1,9 @@
+---
+profile: production
+exclude_paths:
+  - .venv/
+  - .ansible/
+  - .github/
+# The EC2 inventory is a plugin config, not a playbook or vars file
+kinds:
+  - yaml: "inventories/aws_ec2.yml"
