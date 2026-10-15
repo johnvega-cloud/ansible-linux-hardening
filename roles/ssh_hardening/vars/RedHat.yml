@@ -1,4 +1,0 @@
----
-ssh_packages: [openssh-server]
-ssh_service_name: sshd
-ssh_activation_unit: sshd.service

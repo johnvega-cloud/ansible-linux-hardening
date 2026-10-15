@@ -1,6 +1,0 @@
----
-ssh_packages: [openssh-server]
-ssh_service_name: ssh
-# Ubuntu 24.04 starts sshd through socket activation (ssh.socket). Enabling
-# ssh.service as well would make both fight for port 22 at boot.
-ssh_activation_unit: "{{ 'ssh.socket' if ansible_facts['distribution_major_version'] | int >= 24 else 'ssh.service' }}"

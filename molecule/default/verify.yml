@@ -78,13 +78,12 @@
         quiet: true
       when: ansible_facts['os_family'] == 'RedHat'
 
-    - name: Read timer state
-      ansible.builtin.command: "systemctl is-enabled {{ item }}"
-      loop: "{{ ['apt-daily-upgrade.timer'] if ansible_facts['os_family'] == 'Debian' else ['dnf-automatic.timer'] }}"
-      register: timers
-      changed_when: false
+    - name: Read update timer state
+      ansible.builtin.systemd_service:
+        name: "{{ 'apt-daily-upgrade.timer' if ansible_facts['os_family'] == 'Debian' else 'dnf-automatic.timer' }}"
+      register: update_timer
 
     - name: Assert update timer is enabled
       ansible.builtin.assert:
-        that: timers.results | map(attribute='stdout') | unique == ['enabled']
+        that: update_timer.status.UnitFileState == 'enabled'
         quiet: true

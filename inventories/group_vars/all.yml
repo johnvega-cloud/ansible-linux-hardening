@@ -7,4 +7,4 @@ ansible_ssh_common_args: >-
 
 # Example fleet-wide overrides of role defaults (see roles/*/defaults/main.yml):
 # fail2ban_ignoreip_extra: ["10.10.0.0/16"]   # admin VPC / bastion range
-# ssh_allow_groups: ["ssh-users"]
+# sshd_allow_groups: ["ssh-users"]

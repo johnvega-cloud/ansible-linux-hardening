@@ -4,11 +4,11 @@
 # Ubuntu 24.04 socket activation, where the next connection starts it with the
 # new config anyway. The service module has no equivalent state.
 - name: Reload sshd
-  ansible.builtin.command: "systemctl try-reload-or-restart {{ ssh_service_name }}.service"  # noqa: command-instead-of-module
+  ansible.builtin.command: "systemctl try-reload-or-restart {{ sshd_service_name }}.service"  # noqa: command-instead-of-module
   changed_when: true
 
 # Needed only when the service environment changes (RHEL 8 CRYPTO_POLICY).
 - name: Restart sshd
   ansible.builtin.service:
-    name: "{{ ssh_service_name }}"
+    name: "{{ sshd_service_name }}"
     state: restarted

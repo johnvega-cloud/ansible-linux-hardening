@@ -16,7 +16,7 @@
   roles:
     - role: common
       tags: [common]
-    - role: ssh_hardening
+    - role: sshd
       tags: [ssh]
     - role: fail2ban
       tags: [fail2ban]

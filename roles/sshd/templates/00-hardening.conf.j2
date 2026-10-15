@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+# Hardened sshd baseline (CIS "SSH Server" section subset). Edit role variables, not this file.
+
+# --- Authentication ---
+PermitRootLogin {{ sshd_permit_root_login }}
+PubkeyAuthentication {{ 'yes' if sshd_pubkey_authentication else 'no' }}
+PasswordAuthentication {{ 'yes' if sshd_password_authentication else 'no' }}
+PermitEmptyPasswords no
+# ChallengeResponseAuthentication is accepted by every supported OpenSSH (8.0+);
+# newer versions treat it as an alias of KbdInteractiveAuthentication.
+ChallengeResponseAuthentication no
+HostbasedAuthentication no
+IgnoreRhosts yes
+PermitUserEnvironment no
+MaxAuthTries {{ sshd_max_auth_tries }}
+LoginGraceTime {{ sshd_login_grace_time }}
+{% if sshd_allow_groups | length > 0 %}
+AllowGroups {{ sshd_allow_groups | join(' ') }}
+{% endif %}
+
+# --- Session limits ---
+ClientAliveInterval {{ sshd_client_alive_interval }}
+ClientAliveCountMax {{ sshd_client_alive_count_max }}
+MaxSessions {{ sshd_max_sessions }}
+MaxStartups {{ sshd_max_startups }}
+
+# --- Attack surface ---
+X11Forwarding {{ 'yes' if sshd_x11_forwarding else 'no' }}
+AllowTcpForwarding {{ 'yes' if sshd_allow_tcp_forwarding else 'no' }}
+AllowAgentForwarding {{ 'yes' if sshd_allow_agent_forwarding else 'no' }}
+LogLevel {{ sshd_log_level }}
+Banner /etc/issue.net
+
+# --- Cryptography ---
+Ciphers {{ sshd_ciphers | join(',') }}
+MACs {{ sshd_macs | join(',') }}
+KexAlgorithms {{ sshd_kex_algorithms | join(',') }}

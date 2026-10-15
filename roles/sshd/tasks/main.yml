@@ -6,8 +6,8 @@
 # --- Safety first: never disable passwords for a user who has no key ---
 - name: SSH | Lockout guard
   when:
-    - ssh_lockout_guard | bool
-    - not (ssh_password_authentication | bool)
+    - sshd_lockout_guard | bool
+    - not (sshd_password_authentication | bool)
     - ansible_connection | default('ssh') in ['ssh', 'smart', 'paramiko']
   block:
     - name: SSH | Look up the connecting user's home directory
@@ -18,21 +18,21 @@
     - name: SSH | Check the connecting user's authorized_keys
       ansible.builtin.stat:
         path: "{{ getent_passwd[ansible_user | default(lookup('ansible.builtin.env', 'USER'))][4] }}/.ssh/authorized_keys"
-      register: ssh_authorized_keys
+      register: sshd_authorized_keys
 
     - name: SSH | Refuse to disable password login without an authorized key
       ansible.builtin.assert:
         that:
-          - ssh_authorized_keys.stat.exists
-          - ssh_authorized_keys.stat.size > 0
+          - sshd_authorized_keys.stat.exists
+          - sshd_authorized_keys.stat.size > 0
         fail_msg: >-
           The connecting user has no authorized_keys. Disabling password login would
-          lock you out. Add a key first, or set ssh_lockout_guard=false if access is via SSM.
+          lock you out. Add a key first, or set sshd_lockout_guard=false if access is via SSM.
         quiet: true
 
 - name: SSH | Install OpenSSH server
   ansible.builtin.package:
-    name: "{{ ssh_packages }}"
+    name: "{{ sshd_packages }}"
     state: present
 
 # Fresh images (and some golden-AMI pipelines) only create host keys on the first
@@ -45,7 +45,7 @@
 # RHEL 8's default sshd_config has no Include line; Ubuntu 22.04+ and RHEL 9 already do.
 - name: SSH | Ensure drop-in directory exists
   ansible.builtin.file:
-    path: "{{ ssh_dropin_dir }}"
+    path: "{{ sshd_dropin_dir }}"
     state: directory
     owner: root
     group: root
@@ -53,19 +53,19 @@
 
 - name: SSH | Ensure sshd_config includes the drop-in directory first
   ansible.builtin.lineinfile:
-    path: "{{ ssh_config_file }}"
+    path: "{{ sshd_config_file }}"
     regexp: '^Include\s+/etc/ssh/sshd_config\.d/\*\.conf'
-    line: "Include {{ ssh_dropin_dir }}/*.conf"
+    line: "Include {{ sshd_dropin_dir }}/*.conf"
     insertbefore: BOF
     owner: root
     group: root
     mode: "0600"
-    validate: "{{ ssh_sshd_binary }} -t -f %s"
+    validate: "{{ sshd_sshd_binary }} -t -f %s"
   notify: Reload sshd
 
 - name: SSH | Restrict sshd_config permissions
   ansible.builtin.file:
-    path: "{{ ssh_config_file }}"
+    path: "{{ sshd_config_file }}"
     owner: root
     group: root
     mode: "0600"
@@ -73,7 +73,7 @@
 - name: SSH | Login banner
   ansible.builtin.copy:
     dest: /etc/issue.net
-    content: "{{ ssh_banner_text }}"
+    content: "{{ sshd_banner_text }}"
     owner: root
     group: root
     mode: "0644"
@@ -99,7 +99,7 @@
     group: root
     mode: "0640"
   when:
-    - ssh_override_rhel8_crypto_policy | bool
+    - sshd_override_rhel8_crypto_policy | bool
     - ansible_facts['os_family'] == 'RedHat'
     - ansible_facts['distribution_major_version'] == '8'
   notify: Restart sshd
@@ -112,34 +112,34 @@
     - name: SSH | Template hardened drop-in
       ansible.builtin.template:
         src: 00-hardening.conf.j2
-        dest: "{{ ssh_dropin_file }}"
+        dest: "{{ sshd_dropin_file }}"
         owner: root
         group: root
         mode: "0600"
         backup: true
-      register: ssh_dropin
+      register: sshd_dropin
       notify: Reload sshd
 
     - name: SSH | Validate the complete sshd configuration
-      ansible.builtin.command: "{{ ssh_sshd_binary }} -t"
+      ansible.builtin.command: "{{ sshd_sshd_binary }} -t"
       changed_when: false
 
   rescue:
     - name: SSH | Restore previous drop-in
       ansible.builtin.copy:
-        src: "{{ ssh_dropin.backup_file }}"
-        dest: "{{ ssh_dropin_file }}"
+        src: "{{ sshd_dropin.backup_file }}"
+        dest: "{{ sshd_dropin_file }}"
         remote_src: true
         owner: root
         group: root
         mode: "0600"
-      when: ssh_dropin.backup_file is defined
+      when: sshd_dropin.backup_file is defined
 
     - name: SSH | Remove new drop-in that had no previous version
       ansible.builtin.file:
-        path: "{{ ssh_dropin_file }}"
+        path: "{{ sshd_dropin_file }}"
         state: absent
-      when: ssh_dropin.backup_file is not defined
+      when: sshd_dropin.backup_file is not defined
 
     - name: SSH | Stop this host
       ansible.builtin.fail:
@@ -147,6 +147,6 @@
 
 - name: SSH | Ensure sshd is enabled and running
   ansible.builtin.systemd_service:
-    name: "{{ ssh_activation_unit }}"
+    name: "{{ sshd_activation_unit }}"
     state: started
     enabled: true
