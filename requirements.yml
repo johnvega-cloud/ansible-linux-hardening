@@ -7,3 +7,5 @@ collections:
     version: ">=9.0.0"
   - name: community.docker    # Molecule test driver
     version: ">=4.0.0"
+  - name: ansible.posix       # used by the Molecule docker driver (synchronize)
+    version: ">=1.6.0"

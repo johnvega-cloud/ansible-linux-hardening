@@ -245,7 +245,7 @@ with green CI.
 |---|---|
 | ansible-core | 2.19 (pinned in `requirements.txt`) |
 | Python (controller) | 3.11+ |
-| Collections | `amazon.aws` ≥ 9, `community.general` ≥ 10, `community.docker` ≥ 4 |
+| Collections | `amazon.aws` ≥ 9, `community.general` ≥ 10; for Molecule: `community.docker` ≥ 4, `ansible.posix` ≥ 1.6 |
 | Docker | for Molecule only |
 
 ## Author
