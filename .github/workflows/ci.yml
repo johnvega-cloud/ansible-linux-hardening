@@ -39,7 +39,7 @@ jobs:
         run: ansible-playbook playbooks/site.yml -i inventories/static.example.yml --syntax-check
 
   molecule:
-    name: molecule (Ubuntu 24.04 + Rocky 9)
+    name: molecule (Ubuntu 22.04/24.04 + Rocky 9)
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -50,5 +50,5 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: ansible-galaxy collection install -r requirements.yml
-      # converge -> idempotence (second run must change nothing) -> verify
+      # check -> converge -> idempotence (second run must change nothing) -> verify
       - run: molecule test

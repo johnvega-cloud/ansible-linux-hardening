@@ -1,6 +1,6 @@
 ---
-# Converge the full baseline on systemd containers (Ubuntu 24.04 and Rocky 9 as
-# the RHEL 9 stand-in), check idempotence, then verify the resulting state.
+# Converge the full baseline on systemd containers (Ubuntu 22.04/24.04 and
+# Rocky 9 as the RHEL 9 stand-in), check idempotence, then verify the resulting state.
 driver:
   name: docker
 
@@ -23,6 +23,15 @@ platforms:
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
     groups: [os_rhel]
+  - name: ubuntu2204
+    image: geerlingguy/docker-ubuntu2204-ansible:latest
+    pre_build_image: true
+    command: ""
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups: [os_ubuntu]
 
 provisioner:
   name: ansible

@@ -87,3 +87,204 @@
       ansible.builtin.assert:
         that: update_timer.status.UnitFileState == 'enabled'
         quiet: true
+
+# Behaviour tests: the controls must work, not just be configured.
+- name: Verify fail2ban bans a real SSH brute force
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    # Each host is attacked by the next one in the list (fail2ban ignores its own IPs).
+    f2b_attacker: "{{ ansible_play_hosts_all[(ansible_play_hosts_all.index(inventory_hostname) + 1) % (ansible_play_hosts_all | length)] }}"
+    f2b_attacker_ip: "{{ hostvars[f2b_attacker]['ansible_facts']['default_ipv4']['address'] }}"
+  tasks:
+    - name: Install an SSH client to attack from
+      ansible.builtin.package:
+        name: "{{ 'openssh-client' if ansible_facts['os_family'] == 'Debian' else 'openssh-clients' }}"
+        state: present
+
+    - name: Six failed logins from the attacker
+      ansible.builtin.command: >-
+        timeout 5 ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+        bruteforce{{ item }}@{{ ansible_facts['default_ipv4']['address'] }} true
+      delegate_to: "{{ f2b_attacker }}"
+      loop: "{{ range(6) | list }}"
+      register: f2b_attempts
+      changed_when: false
+      failed_when: f2b_attempts.rc == 0   # a successful login would be the real failure
+
+    - name: Wait for the attacker to be banned
+      ansible.builtin.command: fail2ban-client status sshd
+      register: f2b_jail
+      changed_when: false
+      until: f2b_attacker_ip in f2b_jail.stdout
+      retries: 10
+      delay: 2
+
+    - name: Read nftables ruleset
+      ansible.builtin.command: nft list ruleset
+      register: f2b_nft
+      changed_when: false
+
+    - name: Assert the ban is enforced in nftables
+      ansible.builtin.assert:
+        that: f2b_attacker_ip in f2b_nft.stdout
+        quiet: true
+
+    - name: Unban the attacker
+      ansible.builtin.command: "fail2ban-client set sshd unbanip {{ f2b_attacker_ip }}"
+      changed_when: true
+
+- name: Verify the sshd safety nets
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    # --- Lockout guard (normally skipped here: Molecule connects with docker exec) ---
+    - name: Create a test login user without a key
+      ansible.builtin.user:
+        name: guardtest
+        shell: /bin/bash
+
+    - name: Guard | connecting as root is rejected
+      block:
+        - name: Run guard as root
+          ansible.builtin.include_role:
+            name: sshd
+            tasks_from: guard
+          vars:
+            sshd_login_user: root
+        - name: Record unexpected pass
+          ansible.builtin.set_fact:
+            guard_root: passed
+      rescue:
+        - name: Record rejection
+          ansible.builtin.set_fact:
+            guard_root: rejected
+
+    - name: Guard | user without authorized_keys is rejected
+      block:
+        - name: Run guard for a user without a key
+          ansible.builtin.include_role:
+            name: sshd
+            tasks_from: guard
+          vars:
+            sshd_login_user: guardtest
+        - name: Record unexpected pass
+          ansible.builtin.set_fact:
+            guard_nokey: passed
+      rescue:
+        - name: Record rejection
+          ansible.builtin.set_fact:
+            guard_nokey: rejected
+
+    - name: Create the test user's .ssh directory
+      ansible.builtin.file:
+        path: /home/guardtest/.ssh
+        state: directory
+        owner: guardtest
+        mode: "0700"
+
+    - name: Give the test user a key
+      ansible.builtin.copy:
+        dest: /home/guardtest/.ssh/authorized_keys
+        content: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMolecule+test+key+not+a+real+one guardtest\n"
+        owner: guardtest
+        mode: "0600"
+
+    - name: Guard | user outside sshd_allow_groups is rejected
+      block:
+        - name: Run guard with an AllowGroups list that excludes the user
+          ansible.builtin.include_role:
+            name: sshd
+            tasks_from: guard
+          vars:
+            sshd_login_user: guardtest
+            sshd_allow_groups: [ssh-admins]
+        - name: Record unexpected pass
+          ansible.builtin.set_fact:
+            guard_groups: passed
+      rescue:
+        - name: Record rejection
+          ansible.builtin.set_fact:
+            guard_groups: rejected
+
+    - name: Guard | a user with a key in an allowed group passes
+      ansible.builtin.include_role:
+        name: sshd
+        tasks_from: guard
+      vars:
+        sshd_login_user: guardtest
+        sshd_allow_groups: [guardtest]
+
+    - name: Assert the guard rejected every lockout
+      ansible.builtin.assert:
+        that:
+          - guard_root == 'rejected'
+          - guard_nokey == 'rejected'
+          - guard_groups == 'rejected'
+        quiet: true
+
+    # --- Rollback: an invalid drop-in is replaced by the previous good one ---
+    - name: Rollback | apply an invalid value
+      block:
+        - name: Run the role with a value sshd rejects
+          ansible.builtin.include_role:
+            name: sshd
+          vars:
+            sshd_max_auth_tries: not-a-number
+        - name: Record unexpected pass
+          ansible.builtin.set_fact:
+            rollback_invalid: passed
+      rescue:
+        - name: Record failure
+          ansible.builtin.set_fact:
+            rollback_invalid: failed
+
+    - name: Read the drop-in after the failed run
+      ansible.builtin.slurp:
+        src: /etc/ssh/sshd_config.d/00-hardening.conf
+      register: dropin_after_invalid
+
+    # --- Rollback: an error in ANOTHER file must not delete our drop-in ---
+    - name: Break sshd with an unrelated drop-in
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-broken.conf
+        content: "NotARealOption yes\n"
+        mode: "0600"
+
+    - name: Rollback | unrelated broken file
+      block:
+        - name: Run the role with an unchanged drop-in and a broken neighbour
+          ansible.builtin.include_role:
+            name: sshd
+        - name: Record unexpected pass
+          ansible.builtin.set_fact:
+            rollback_neighbour: passed
+      rescue:
+        - name: Record failure
+          ansible.builtin.set_fact:
+            rollback_neighbour: failed
+
+    - name: Read the drop-in after the neighbour failure
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config.d/00-hardening.conf
+      register: dropin_after_neighbour
+
+    - name: Remove the broken neighbour
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d/99-broken.conf
+        state: absent
+
+    - name: Validate the final sshd configuration
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+
+    - name: Assert both failures were caught and the hardening survived
+      ansible.builtin.assert:
+        that:
+          - rollback_invalid == 'failed'
+          - "'MaxAuthTries 4' in (dropin_after_invalid.content | b64decode)"
+          - rollback_neighbour == 'failed'
+          - dropin_after_neighbour.stat.exists
+        quiet: true
