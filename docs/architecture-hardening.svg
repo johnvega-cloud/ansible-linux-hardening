@@ -91,7 +91,7 @@
 
   <rect x="1010" y="320" width="295" height="110" rx="6" fill="#FFFFFF" stroke="#ED7100" stroke-width="2"/>
   <text x="1025" y="346" class="t" font-size="15" font-weight="700">group os_rhel</text>
-  <text x="1025" y="368" class="mono">RHEL / Rocky / Alma 8-9</text>
+  <text x="1025" y="368" class="mono">RHEL / Rocky / Alma 9</text>
   <text x="1025" y="388" class="mono">user: ec2-user</text>
   <text x="1025" y="408" class="mono">dnf + EPEL, sshd.service</text>
 
@@ -143,7 +143,7 @@
   <!-- ===== Legend / test loop ===== -->
   <rect x="30" y="750" width="1340" height="120" rx="8" fill="#F2F3F3" stroke="#545B64" stroke-width="1.5"/>
   <text x="50" y="778" class="t" font-size="15" font-weight="700">Same playbook, tested without AWS</text>
-  <text x="50" y="802" class="mono">molecule test: Docker (Ubuntu 24.04 + Rocky 9 with systemd) -> converge -> idempotence (0 changes) -> verify (sshd -T, fail2ban, timers)</text>
+  <text x="50" y="802" class="mono">molecule test: Ubuntu 22.04/24.04 + Rocky 9 -> check -> converge -> idempotence (0 changes) -> verify (state + real brute force, guard, rollback)</text>
   <text x="50" y="826" class="mono">CI on every PR: yamllint -> ansible-lint (production profile) -> syntax check -> molecule test</text>
   <path d="M1000,850 H1040" class="dash" marker-end="url(#arrow)"/>
   <text x="1048" y="855" class="mu" font-size="13">API call (read-only)</text>

@@ -86,10 +86,14 @@ Level 1 implementation.
 
 - AWS credentials on the controller with `ec2:DescribeInstances` (for the inventory only).
 - Target instances tagged `Hardening=true` and `OS=ubuntu` or `OS=rhel`.
-  The `OS` tag picks the login user (`ubuntu` / `ec2-user`).
+  The `OS` tag picks the login user (`ubuntu` / `ec2-user`). Official Rocky
+  AMIs log in as `rocky`: set `ansible_user` in `group_vars` for those.
 - SSH access with a key: through a bastion (`hardening_bastion` in
   `inventories/group_vars/all.yml`) or directly. The connecting user needs `sudo`.
-- Supported targets: Ubuntu 22.04 / 24.04, RHEL / Rocky / AlmaLinux 8 and 9.
+- Supported targets: Ubuntu 22.04 / 24.04 and RHEL / Rocky / AlmaLinux 9.
+  EL8 is **not** supported: ansible-core 2.17+ cannot run modules on its
+  system Python (3.6), and the `dnf` module needs that Python's bindings.
+  Managing EL8 means pinning ansible-core 2.16, which is end-of-life.
 
 ## Usage
 
@@ -134,9 +138,9 @@ All defaults live in `roles/<role>/defaults/main.yml`. Override them in
 | `sshd_password_authentication` | `false` | Allow password logins |
 | `sshd_allow_groups` | `[]` | Only these groups may log in (empty = no restriction) |
 | `sshd_max_auth_tries` | `4` | Failed attempts per connection |
-| `sshd_ciphers` / `sshd_macs` / `sshd_kex_algorithms` | modern lists | Allowed algorithms (all available in OpenSSH 8.0+) |
-| `sshd_lockout_guard` | `true` | Refuse to disable passwords if the login user has no key |
-| `sshd_override_rhel8_crypto_policy` | `true` | Let `sshd_config` set ciphers on RHEL 8 (see Security notes) |
+| `sshd_ciphers` / `sshd_macs` / `sshd_kex_algorithms` | modern lists | Allowed algorithms (all available in OpenSSH 8.7+) |
+| `sshd_lockout_guard` | `true` | Stop before any change if the new config would lock out the login user |
+| `sshd_login_user` | `ansible_user` | User the lockout guard checks |
 | `fail2ban_maxretry` / `fail2ban_findtime` / `fail2ban_bantime` | `5` / `10m` / `1h` | Ban policy |
 | `fail2ban_ignoreip_extra` | `[]` | Never ban these CIDRs: add the bastion or admin network |
 | `fail2ban_manage_epel` | `true` | Install EPEL on RHEL family |
@@ -145,27 +149,34 @@ All defaults live in `roles/<role>/defaults/main.yml`. Override them in
 
 ## Security notes
 
-- **Lockout protection.** Before disabling password logins, the `sshd` role
-  checks that the connecting user has a non-empty `authorized_keys`. If you
-  reach instances through SSM instead of SSH keys, set `sshd_lockout_guard: false`.
+- **Lockout protection.** Before changing anything, the `sshd` role checks
+  that the user Ansible logs in as can still log in afterwards: it is not
+  `root` (the baseline sets `PermitRootLogin no`), it has a non-empty
+  `authorized_keys`, and it belongs to `sshd_allow_groups` when that list is
+  set. If you reach instances through SSM instead of SSH, set
+  `sshd_lockout_guard: false`.
 - **Validation and rollback.** After writing the drop-in, the role runs
   `sshd -t` on the full configuration (main file plus every drop-in). If it
-  fails, the previous file is restored and the host is marked failed, so sshd
-  is never reloaded or rebooted into a broken config.
+  fails, the role undoes only what this run changed: it restores the previous
+  drop-in, or removes it if it was new. If the drop-in did not change, the
+  error is in another file and the drop-in stays (removing it would re-enable
+  password logins). Either way the host is marked failed and sshd is not
+  reloaded into a broken config.
 - **Reload, not restart.** Config changes are applied with
   `systemctl try-reload-or-restart`: existing sessions, including Ansible's
   own, stay connected.
 - **Drop-in precedence.** sshd keeps the first value it reads for most options.
   The baseline lives in `sshd_config.d/00-hardening.conf`, which is read before
   distribution and cloud-init drop-ins such as `50-cloud-init.conf`.
-- **RHEL crypto policies.** RHEL 8 passes the system crypto policy to sshd as
-  command-line options, which override any config file. The role clears
-  `CRYPTO_POLICY` in `/etc/sysconfig/sshd` so the cipher lists apply. On FIPS
-  hosts, set `sshd_override_rhel8_crypto_policy: false` and leave the crypto
-  policy in control. RHEL 9 reads the policy through an `Include`, so the `00-`
-  drop-in already wins there.
+- **RHEL crypto policies.** RHEL 9 loads the system crypto policy through
+  `50-redhat.conf`. The `00-` drop-in is read first, so its cipher lists win.
+  On FIPS hosts some algorithms (e.g. chacha20-poly1305) are not allowed:
+  override `sshd_ciphers` / `sshd_macs` / `sshd_kex_algorithms`, or `sshd -t`
+  fails and the rollback keeps the previous config.
 - **Ubuntu 24.04 socket activation.** sshd starts from `ssh.socket` there. The
   role enables the socket, not `ssh.service`, so the two do not fight over port 22.
+  Hosts where an admin switched back to `ssh.service` need
+  `sshd_activation_unit: ssh.service`.
 - **fail2ban allow-list.** Add your bastion or admin CIDR to
   `fail2ban_ignoreip_extra`. Otherwise a misconfigured key on the bastion can
   get the bastion itself banned.
@@ -193,16 +204,22 @@ ansible-lint                     # production profile
 molecule test                    # needs Docker
 ```
 
-`molecule test` starts Ubuntu 24.04 and Rocky Linux 9 containers with systemd
-(Rocky stands in for RHEL 9), then:
+`molecule test` starts Ubuntu 22.04, Ubuntu 24.04 and Rocky Linux 9 containers
+with systemd (Rocky stands in for RHEL 9), then:
 
 1. **check**: runs the playbook in `--check` mode on the unhardened
    containers: the audit mode must not fail;
 2. **converge**: runs `playbooks/site.yml`, the same playbook used on the fleet;
 3. **idempotence**: runs it again and fails on any change;
-4. **verify**: checks the *effective* state: `sshd -T` output, sshd_config
-   permissions, `fail2ban-client status sshd`, `apt-config dump`, the
-   dnf-automatic config and the update timers.
+4. **verify**, in two parts:
+   - **state**: the *effective* sshd configuration (`sshd -T`), sshd_config
+     permissions, the fail2ban jail, `apt-config dump`, the dnf-automatic
+     config and the update timers;
+   - **behaviour**: each host is brute-forced over SSH by another container
+     and must ban it in nftables; the lockout guard must reject root, a user
+     without a key and a user outside `AllowGroups`, and accept a valid user;
+     an invalid sshd value must be rolled back; a broken unrelated sshd file
+     must fail the run without deleting the hardening drop-in.
 
 GitHub Actions runs lint, syntax check and Molecule on every push and pull
 request. CI never touches AWS. `main` is protected: changes go through a PR
@@ -214,8 +231,11 @@ with green CI.
   behaviour or a real reboot. The tests cover configuration, services and
   idempotence.
 - RHEL itself is not in CI (it needs a subscription). Rocky Linux 9 runs the
-  same packages. The RHEL-only branches (EPEL from the Fedora URL, RHEL 8
-  `CRYPTO_POLICY`) are covered by lint and syntax checks only.
+  same packages. The RHEL-only branch (EPEL from the Fedora URL and its GPG
+  key) is covered by lint and syntax checks only.
+- The lockout guard is tested directly (`tasks_from: guard`). Its trigger in
+  `main.yml` only runs over SSH, which Molecule does not use (it connects with
+  `docker exec`).
 - Changing the SSH port on RHEL also needs an SELinux port label
   (`semanage port`), which this project does not manage.
 
