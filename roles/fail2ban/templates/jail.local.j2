@@ -1,0 +1,23 @@
+# {{ ansible_managed }}
+# Overrides jail.conf (which package updates replace). Edit role variables, not this file.
+
+[DEFAULT]
+# Read auth events from the journal: same on Ubuntu and RHEL, and works on
+# images without rsyslog (no /var/log/auth.log or /var/log/secure).
+backend = systemd
+# nftables is the packet filter on RHEL 8/9 and Ubuntu 22.04+ (iptables is a shim over it).
+banaction = nftables-multiport
+banaction_allports = nftables-allports
+ignoreip = 127.0.0.1/8 ::1{% for cidr in fail2ban_ignoreip_extra %} {{ cidr }}{% endfor %}
+
+bantime = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+maxretry = {{ fail2ban_maxretry }}
+bantime.increment = {{ 'true' if fail2ban_bantime_increment else 'false' }}
+bantime.maxtime = {{ fail2ban_bantime_maxtime }}
+
+[sshd]
+enabled = true
+port = {{ fail2ban_ssh_port }}
+# aggressive = also count pre-auth probes and invalid-user attempts
+mode = aggressive

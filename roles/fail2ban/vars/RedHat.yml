@@ -1,0 +1,4 @@
+---
+# fail2ban-server + fail2ban-systemd instead of the "fail2ban" meta package:
+# the meta package pulls in firewalld integration, and EC2 RHEL images do not run firewalld.
+fail2ban_packages: [fail2ban-server, fail2ban-systemd, nftables]

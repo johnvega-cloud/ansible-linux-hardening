@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: John Vega
+  description: fail2ban sshd jail with incremental bans (journal backend, nftables)
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Ubuntu
+      versions: [jammy, noble]
+    - name: EL
+      versions: ["8", "9"]
+dependencies: []

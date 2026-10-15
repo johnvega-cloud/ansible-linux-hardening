@@ -1,0 +1,3 @@
+---
+# python3-systemd lets fail2ban read the journal (backend = systemd).
+fail2ban_packages: [fail2ban, python3-systemd, nftables]

@@ -1,0 +1,18 @@
+---
+# Ban policy for the sshd jail
+fail2ban_maxretry: 5
+fail2ban_findtime: 10m
+fail2ban_bantime: 1h
+# Repeat offenders get longer bans (1h, 2h, 4h ... up to bantime_maxtime)
+fail2ban_bantime_increment: true
+fail2ban_bantime_maxtime: 1w
+
+# Never ban these sources. Add your bastion / VPN / VPC CIDR so a typo in a key
+# cannot ban the admin network. Example: ["10.10.0.0/16"]
+fail2ban_ignoreip_extra: []
+
+# Same port sshd listens on
+fail2ban_ssh_port: 22
+
+# RHEL ships fail2ban in EPEL only. Set false if EPEL is already managed elsewhere.
+fail2ban_manage_epel: true

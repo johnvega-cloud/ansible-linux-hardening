@@ -1,0 +1,36 @@
+---
+- name: Fail2ban | Load OS family variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+  tags: [always]
+
+- name: Fail2ban | Enable EPEL
+  ansible.builtin.include_tasks: RedHat.yml
+  when:
+    - ansible_facts['os_family'] == 'RedHat'
+    - fail2ban_manage_epel | bool
+
+- name: Fail2ban | Install packages
+  ansible.builtin.package:
+    name: "{{ fail2ban_packages }}"
+    state: present
+
+- name: Fail2ban | Configure sshd jail
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+# Parse the whole configuration (jail.conf + jail.local + filters) before the
+# restart handler runs, so a bad value fails here and not as a dead service.
+- name: Fail2ban | Validate configuration
+  ansible.builtin.command: fail2ban-client --test
+  changed_when: false
+
+- name: Fail2ban | Ensure fail2ban is enabled and running
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    state: started
+    enabled: true
