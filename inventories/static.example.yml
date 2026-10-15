@@ -1,0 +1,18 @@
+---
+# Static inventory for hosts outside AWS or for a quick test.
+# Copy to static.local.yml (git-ignored) and run:
+#   ansible-playbook -i inventories/static.local.yml playbooks/site.yml
+all:
+  children:
+    os_ubuntu:
+      hosts:
+        web-01:
+          ansible_host: 10.10.32.10
+      vars:
+        ansible_user: ubuntu
+    os_rhel:
+      hosts:
+        app-01:
+          ansible_host: 10.10.64.10
+      vars:
+        ansible_user: ec2-user

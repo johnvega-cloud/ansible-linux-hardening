@@ -1,0 +1,24 @@
+---
+# Apply the hardening baseline to the fleet.
+#
+#   Audit only (no changes, shows the diff):  ansible-playbook playbooks/site.yml --check --diff
+#   Apply:                                    ansible-playbook playbooks/site.yml
+#   One environment / OS:                     ... -e target_hosts=env_prod
+#   One control:                              ... --tags ssh
+- name: Harden Linux fleet (CIS subset)
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  # Rolling rollout: a quarter of the fleet at a time, and stop everything as
+  # soon as one host fails, before the problem reaches the next batch.
+  serial: "{{ hardening_serial | default('25%') }}"
+  max_fail_percentage: 0
+
+  roles:
+    - role: common
+      tags: [common]
+    - role: ssh_hardening
+      tags: [ssh]
+    - role: fail2ban
+      tags: [fail2ban]
+    - role: auto_updates
+      tags: [updates]

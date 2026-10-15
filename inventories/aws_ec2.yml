@@ -1,0 +1,33 @@
+---
+# Dynamic inventory: every running EC2 instance tagged Hardening=true.
+# Needs AWS credentials on the controller (profile, SSO or instance role) with
+# ec2:DescribeInstances. Test it with: ansible-inventory --graph
+plugin: amazon.aws.aws_ec2
+
+regions:
+  - us-east-1
+  # - eu-west-1
+
+filters:
+  tag:Hardening: "true"
+  instance-state-name: running
+
+# Instance IDs are unique and stable; Name tags are neither.
+hostnames:
+  - instance-id
+
+compose:
+  # Instances live in private subnets: connect to the private IP (through the
+  # bastion configured in group_vars/all.yml).
+  ansible_host: private_ip_address
+  # Default login user of the official AMIs
+  ansible_user: "'ubuntu' if tags.get('OS', '') == 'ubuntu' else 'ec2-user'"
+
+# Groups used to target subsets: os_ubuntu, os_rhel, env_prod, region_us_east_1 ...
+keyed_groups:
+  - key: tags.OS
+    prefix: os
+  - key: tags.Environment
+    prefix: env
+  - key: placement.region
+    prefix: region

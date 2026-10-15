@@ -1,0 +1,10 @@
+---
+# Bastion used as SSH jump host to reach private instances.
+# Example: "ec2-user@bastion.example.internal". Empty = connect directly.
+hardening_bastion: ""
+ansible_ssh_common_args: >-
+  {{ ('-o ProxyJump=' ~ hardening_bastion) if hardening_bastion | length > 0 else '' }}
+
+# Example fleet-wide overrides of role defaults (see roles/*/defaults/main.yml):
+# fail2ban_ignoreip_extra: ["10.10.0.0/16"]   # admin VPC / bastion range
+# ssh_allow_groups: ["ssh-users"]
