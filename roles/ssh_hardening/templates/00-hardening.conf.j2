@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+# Hardened sshd baseline (CIS "SSH Server" section subset). Edit role variables, not this file.
+
+# --- Authentication ---
+PermitRootLogin {{ ssh_permit_root_login }}
+PubkeyAuthentication {{ 'yes' if ssh_pubkey_authentication else 'no' }}
+PasswordAuthentication {{ 'yes' if ssh_password_authentication else 'no' }}
+PermitEmptyPasswords no
+# ChallengeResponseAuthentication is accepted by every supported OpenSSH (8.0+);
+# newer versions treat it as an alias of KbdInteractiveAuthentication.
+ChallengeResponseAuthentication no
+HostbasedAuthentication no
+IgnoreRhosts yes
+PermitUserEnvironment no
+MaxAuthTries {{ ssh_max_auth_tries }}
+LoginGraceTime {{ ssh_login_grace_time }}
+{% if ssh_allow_groups | length > 0 %}
+AllowGroups {{ ssh_allow_groups | join(' ') }}
+{% endif %}
+
+# --- Session limits ---
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+MaxSessions {{ ssh_max_sessions }}
+MaxStartups {{ ssh_max_startups }}
+
+# --- Attack surface ---
+X11Forwarding {{ 'yes' if ssh_x11_forwarding else 'no' }}
+AllowTcpForwarding {{ 'yes' if ssh_allow_tcp_forwarding else 'no' }}
+AllowAgentForwarding {{ 'yes' if ssh_allow_agent_forwarding else 'no' }}
+LogLevel {{ ssh_log_level }}
+Banner /etc/issue.net
+
+# --- Cryptography ---
+Ciphers {{ ssh_ciphers | join(',') }}
+MACs {{ ssh_macs | join(',') }}
+KexAlgorithms {{ ssh_kex_algorithms | join(',') }}
