@@ -35,6 +35,13 @@
     name: "{{ ssh_packages }}"
     state: present
 
+# Fresh images (and some golden-AMI pipelines) only create host keys on the first
+# sshd start; `sshd -t` refuses to validate without them.
+- name: SSH | Ensure host keys exist
+  ansible.builtin.command: ssh-keygen -A
+  args:
+    creates: /etc/ssh/ssh_host_ed25519_key
+
 # RHEL 8's default sshd_config has no Include line; Ubuntu 22.04+ and RHEL 9 already do.
 - name: SSH | Ensure drop-in directory exists
   ansible.builtin.file:

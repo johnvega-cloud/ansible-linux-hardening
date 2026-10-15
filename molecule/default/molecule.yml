@@ -1,0 +1,50 @@
+---
+# Converge the full baseline on systemd containers (Ubuntu 24.04 and Rocky 9 as
+# the RHEL 9 stand-in), check idempotence, then verify the resulting state.
+driver:
+  name: docker
+
+platforms:
+  - name: ubuntu2404
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    command: ""
+    privileged: true          # systemd + nftables need it inside the container
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups: [os_ubuntu]
+  - name: rocky9
+    image: geerlingguy/docker-rockylinux9-ansible:latest
+    pre_build_image: true
+    command: ""
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups: [os_rhel]
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/roles
+  playbooks:
+    converge: ${MOLECULE_PROJECT_DIRECTORY}/playbooks/site.yml
+  # serial is evaluated per play, before host variables exist, so it must be an
+  # extra var. Both containers converge in one batch.
+  options:
+    extra-vars: hardening_serial=100%
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

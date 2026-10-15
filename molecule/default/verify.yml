@@ -1,0 +1,90 @@
+---
+# Checks the effective state, not the files: `sshd -T` prints the configuration
+# sshd will actually use after every Include and "first value wins" rule.
+- name: Verify hardening baseline
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Read effective sshd configuration
+      ansible.builtin.command: /usr/sbin/sshd -T
+      register: sshd_effective
+      changed_when: false
+
+    - name: Assert SSH controls
+      ansible.builtin.assert:
+        that:
+          - "'permitrootlogin no' in sshd_effective.stdout_lines"
+          - "'passwordauthentication no' in sshd_effective.stdout_lines"
+          - "'permitemptypasswords no' in sshd_effective.stdout_lines"
+          - "'pubkeyauthentication yes' in sshd_effective.stdout_lines"
+          - "'maxauthtries 4' in sshd_effective.stdout_lines"
+          - "'x11forwarding no' in sshd_effective.stdout_lines"
+          - "'allowtcpforwarding no' in sshd_effective.stdout_lines"
+          - "'clientaliveinterval 300' in sshd_effective.stdout_lines"
+          - "'loglevel VERBOSE' in sshd_effective.stdout_lines"
+          - "'banner /etc/issue.net' in sshd_effective.stdout_lines"
+          - sshd_effective.stdout_lines | select('match', '^ciphers ') | first is not search('cbc|3des|arcfour')
+          - sshd_effective.stdout_lines | select('match', '^macs ') | first is not search('md5|sha1')
+        quiet: true
+
+    - name: Read sshd_config permissions
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config
+      register: sshd_config_stat
+
+    - name: Assert sshd_config is root-only
+      ansible.builtin.assert:
+        that:
+          - sshd_config_stat.stat.pw_name == 'root'
+          - sshd_config_stat.stat.mode == '0600'
+        quiet: true
+
+    - name: Read fail2ban sshd jail status
+      ansible.builtin.command: fail2ban-client status sshd
+      register: f2b_status
+      changed_when: false
+
+    - name: Assert fail2ban jail is active
+      ansible.builtin.assert:
+        that: "'Currently banned' in f2b_status.stdout"
+        quiet: true
+
+    - name: Read effective apt periodic settings (Ubuntu)
+      ansible.builtin.command: apt-config dump APT::Periodic
+      register: apt_periodic
+      changed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Assert unattended upgrades are enabled (Ubuntu)
+      ansible.builtin.assert:
+        that:
+          - "'APT::Periodic::Unattended-Upgrade \"1\";' in apt_periodic.stdout_lines"
+          - "'APT::Periodic::Update-Package-Lists \"1\";' in apt_periodic.stdout_lines"
+        quiet: true
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Read dnf-automatic config (RHEL)
+      ansible.builtin.slurp:
+        src: /etc/dnf/automatic.conf
+      register: dnf_automatic
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Assert dnf-automatic applies security updates (RHEL)
+      ansible.builtin.assert:
+        that:
+          - dnf_automatic.content | b64decode is search('(?m)^apply_updates\s*=\s*yes')
+          - dnf_automatic.content | b64decode is search('(?m)^upgrade_type\s*=\s*security')
+        quiet: true
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Read timer state
+      ansible.builtin.command: "systemctl is-enabled {{ item }}"
+      loop: "{{ ['apt-daily-upgrade.timer'] if ansible_facts['os_family'] == 'Debian' else ['dnf-automatic.timer'] }}"
+      register: timers
+      changed_when: false
+
+    - name: Assert update timer is enabled
+      ansible.builtin.assert:
+        that: timers.results | map(attribute='stdout') | unique == ['enabled']
+        quiet: true
