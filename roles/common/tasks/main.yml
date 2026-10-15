@@ -1,0 +1,17 @@
+---
+- name: Preflight | Fail on unsupported distributions
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in common_supported_distributions
+      - ansible_facts['distribution_major_version'] in common_supported_distributions[ansible_facts['distribution']]
+    fail_msg: >-
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+      is not supported. Supported: {{ common_supported_distributions }}
+    quiet: true
+  tags: [always]
+
+- name: Debian | Refresh apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ common_apt_cache_valid_time }}"
+  when: ansible_facts['os_family'] == 'Debian'
