@@ -10,6 +10,17 @@
     quiet: true
   tags: [always]
 
+- name: Preflight | Fail on RHEL hosts too small for dnf
+  ansible.builtin.assert:
+    that:
+      - (ansible_facts['memtotal_mb'] + ansible_facts['swaptotal_mb']) >= common_redhat_min_memory_mb
+    fail_msg: >-
+      {{ ansible_facts['memtotal_mb'] }} MB RAM + {{ ansible_facts['swaptotal_mb'] }} MB swap is below
+      {{ common_redhat_min_memory_mb }} MB: dnf would be OOM-killed. Use a larger instance or add swap.
+    quiet: true
+  when: ansible_facts['os_family'] == 'RedHat'
+  tags: [always]
+
 # Runs in --check too: refreshing package lists changes no configuration, and
 # without it an audit cannot tell which packages are missing.
 - name: Debian | Refresh apt cache

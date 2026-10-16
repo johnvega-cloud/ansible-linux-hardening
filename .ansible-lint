@@ -7,3 +7,4 @@ exclude_paths:
 # The EC2 inventory is a plugin config, not a playbook or vars file
 kinds:
   - yaml: "inventories/aws_ec2.yml"
+  - yaml: "e2e/aws/aws_ec2.yml"
