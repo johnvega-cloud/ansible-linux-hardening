@@ -11,3 +11,8 @@ common_supported_distributions:
 
 # apt cache is considered fresh for this many seconds (avoids an apt update per run)
 common_apt_cache_valid_time: 3600
+
+# dnf (run through Ansible's Python) needs ~500 MB on RHEL with its cloud repos.
+# Hosts below this RAM + swap get OOM-killed mid-task with an unreadable error,
+# seen on a 1 GB t3.micro in the AWS e2e test. Fail early with a clear message.
+common_redhat_min_memory_mb: 1500
