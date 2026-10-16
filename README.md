@@ -94,6 +94,8 @@ Level 1 implementation.
   EL8 is **not** supported: ansible-core 2.17+ cannot run modules on its
   system Python (3.6), and the `dnf` module needs that Python's bindings.
   Managing EL8 means pinning ansible-core 2.16, which is end-of-life.
+- RHEL hosts need at least 1.5 GB of RAM + swap: `dnf` is OOM-killed on a
+  1 GB `t3.micro`. The `common` role checks this before changing anything.
 
 ## Usage
 
@@ -221,6 +223,14 @@ with systemd (Rocky stands in for RHEL 9), then:
      an invalid sshd value must be rolled back; a broken unrelated sshd file
      must fail the run without deleting the hardening drop-in.
 
+### End-to-end on real EC2
+
+[`e2e/aws/`](e2e/aws/README.md) holds a throwaway Terraform environment: one
+Ubuntu 24.04 and one RHEL 9 instance, tagged for the dynamic inventory. It ran
+the whole flow against real AWS on 2026-10-16: discovery, audit, apply,
+`changed=0` re-run, `verify.yml` and black-box SSH checks, then destroy. That
+run found the RHEL out-of-memory problem described in Prerequisites.
+
 GitHub Actions runs lint, syntax check and Molecule on every push and pull
 request. CI never touches AWS. `main` is protected: changes go through a PR
 with green CI.
@@ -231,11 +241,11 @@ with green CI.
   behaviour or a real reboot. The tests cover configuration, services and
   idempotence.
 - RHEL itself is not in CI (it needs a subscription). Rocky Linux 9 runs the
-  same packages. The RHEL-only branch (EPEL from the Fedora URL and its GPG
-  key) is covered by lint and syntax checks only.
-- The lockout guard is tested directly (`tasks_from: guard`). Its trigger in
-  `main.yml` only runs over SSH, which Molecule does not use (it connects with
-  `docker exec`).
+  same packages there. Real RHEL 9.6, including EPEL from the Fedora URL, was
+  covered by the manual EC2 end-to-end run.
+- In CI the lockout guard is tested directly (`tasks_from: guard`), because
+  Molecule connects with `docker exec`, not SSH. The EC2 end-to-end run
+  exercised it over real SSH.
 - Changing the SSH port on RHEL also needs an SELinux port label
   (`semanage port`), which this project does not manage.
 

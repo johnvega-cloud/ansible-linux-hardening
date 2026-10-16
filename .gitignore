@@ -18,3 +18,11 @@ vault-password*
 .DS_Store
 .idea/
 .vscode/
+
+# --- Terraform (e2e/aws) ---
+# State holds instance IDs and IPs; tfvars hold the operator's IP. NEVER commit.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log

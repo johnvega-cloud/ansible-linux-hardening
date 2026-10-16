@@ -1,0 +1,22 @@
+---
+# Same plugin settings as inventories/aws_ec2.yml, narrowed to the e2e project
+# and using public IPs (the test hosts have no bastion).
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-1
+filters:
+  tag:Hardening: "true"
+  tag:Project: ansible-linux-hardening-e2e
+  instance-state-name: running
+hostnames:
+  - instance-id
+compose:
+  ansible_host: public_ip_address
+  ansible_user: "'ubuntu' if tags.get('OS', '') == 'ubuntu' else 'ec2-user'"
+keyed_groups:
+  - key: tags.OS
+    prefix: os
+  - key: tags.Environment
+    prefix: env
+  - key: placement.region
+    prefix: region
