@@ -27,6 +27,7 @@ The commit history follows these steps, so `git log --reverse` shows the same pa
 | 7 | `molecule/` | Check, converge, idempotence, state and behaviour verify on Ubuntu 22.04/24.04 + Rocky 9 | Locks in the behaviour on both OS families without AWS. The behaviour tests attack the hosts and break sshd on purpose, because a control that is configured is not the same as a control that works. |
 | 8 | `.yamllint`, `.ansible-lint`, `.github/workflows/ci.yml` | Lint and tests on every PR | Automates steps 2–7 as a gate: `main` is protected and only accepts changes that pass CI. |
 | 9 | `README.md`, `docs/` | Usage, controls, safety, diagrams | Documents what was actually built, so it is written last. |
+| 10 | `e2e/aws/` | Throwaway EC2 fleet (Ubuntu 24.04 + RHEL 9): discovery, audit, apply, re-run, verify, destroy | Molecule runs in containers over `docker exec`: no real SSH, no real RHEL, no kernel. Only real instances prove the lockout guard over SSH and EPEL on RHEL; this run also found the RHEL out-of-memory problem. |
 
 ### Key decisions made in step 0
 
